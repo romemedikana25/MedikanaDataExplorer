@@ -91,7 +91,7 @@ FETCHERS = {
 }
 
 ################################################   STREAMLIT APP   ###################################################
-st.title('Medikana Health API Data Explorer (Beta V.2.0)')
+st.title('Medikana Health API Data Explorer')
 
 # ---- SIDEBAR UI ---- #
 with st.sidebar:
