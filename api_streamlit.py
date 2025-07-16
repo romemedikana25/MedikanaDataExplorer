@@ -6,6 +6,25 @@ import matplotlib.pyplot as plt
 import io
 import urllib.parse
 
+# 🔐 Password protection
+def check_password():
+    def password_entered():
+        if st.session_state["password"] == st.secrets["PASSWORD"]:
+            st.session_state["authenticated"] = True
+            st.session_state["password"] = ""
+        else:
+            st.session_state["authenticated"] = False
+
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
+
+    if not st.session_state["authenticated"]:
+        st.title("🔒 Internal Access Only")
+        st.text_input("Enter password", type="password", on_change=password_entered, key="password")
+        st.stop()
+
+check_password()
+
 # Initialize session state variables
 if 'dfs' not in st.session_state:
     st.session_state.dfs = []
