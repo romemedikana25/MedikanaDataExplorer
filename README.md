@@ -1,5 +1,5 @@
 # MedikanaDataExplorer
-##Medikana Public Health API Data Explorer##
+Medikana Public Health API Data Explorer
 Explore Data from the World Health, World Bank, etc using this app
 
 How it works:
