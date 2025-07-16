@@ -3,5 +3,3 @@ pandas
 wbdata
 matplotlib
 requests
-io
-urllib
