@@ -191,7 +191,7 @@ with st.sidebar:
             if segment != 'Select...':
                 st.write(f'Filters Applied: {st.session_state.filters_applied}')
                 # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
-                st.session_state.current_md = st.session_state.current_md[st.session_state.currnt_md['segment'] == segment]
+                st.session_state.current_md = st.session_state.current_md[st.session_state.current_md['segment'] == segment]
                 md_seg = st.session_state.current_md
                 category = st.selectbox('Category', ['Select...'] + sorted(md_seg['category'].dropna().unique().tolist()))
 
