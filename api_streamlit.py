@@ -142,6 +142,7 @@ with st.sidebar:
         st.markdown("### Explore by Filters")
         api_choice = st.selectbox('Choose Data Source/API', list(METADATA_FILES.keys()))
         md = load_metadata(api_choice)
+        st.session_state.current_md = md
 
         st.markdown("Choose Filter to Explore")
         if st.button('Gender'):
