@@ -85,6 +85,10 @@ def fetch_who(indicator_code: str, **kwargs):
     st.warning('WHO API fetching not yet implemented')
     return pd.Series()
 
+# helper to return copy of base metadata when dealing with st.session_state.current_md updates
+def get_base_metadata(api_choice):
+    return load_metadata(api_choice).copy()
+
 # Fetchers dictionary to map data sources to their respective fetch functions
 FETCHERS = {
     'World Bank': fetch_wb,
@@ -104,7 +108,6 @@ with st.sidebar:
         st.session_state.filter_mode = None
         st.session_state.filters_applied = None
         st.session_state.current_md = None
-        st.session_state.clear()
         st.rerun()
 
     st.markdown("Choose Method of Exploration")
@@ -160,35 +163,48 @@ with st.sidebar:
 
         # Filter selections
         if st.session_state.filter_mode == 'gender':
-            gender_filter = st.selectbox('Gender (optional)', ['KEEP ALL'] + sorted(st.session_state.current_md['gender'].dropna().unique().tolist()))
+            base_md = get_base_metadata(api_choice)
+            gender_filter = st.selectbox('Gender (optional)', ['KEEP ALL'] + sorted(base_md['gender'].dropna().unique().tolist()))
             if gender_filter != 'KEEP ALL':
-                st.session_state.current_md = st.session_state.current_md[st.session_state.current_md['gender'] == gender_filter]
-                st.session_state.filter_mode = 'segment'  # go into segment filter with modified md to be for gender
+                st.session_state.current_md = base_md[base_md['gender'] == gender_filter]
+                st.session_state.filter_mode = 'segment'
                 st.session_state.filters_applied = 'Gender'
-                # st.session_state.current_md = md  # store current metadata for further use
+            else:
+                st.session_state.current_md = base_md
+            
         elif st.session_state.filter_mode == 'age_group':
-            age_group_filter = st.selectbox('Age group (optional)', ['KEEP ALL'] + sorted(st.session_state.current_md['agegroup'].dropna().unique().tolist()))
+            base_md = get_base_metadata(api_choice)
+            age_group_filter = st.selectbox('Age group (optional)', ['KEEP ALL'] + sorted(base_md['agegroup'].dropna().unique().tolist()))
             if age_group_filter != 'KEEP ALL':
-                st.session_state.current_md = st.session_state.current_md[st.session_state.current_md['agegroup'] == age_group_filter]
+                st.session_state.current_md = base_md[base_md['agegroup'] == age_group_filter]
                 st.session_state.filter_mode = 'segment'  # go into segment filter with modified st.session_state.current_md to be for age group
                 st.session_state.filters_applied = 'Age Group'
-                # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
+            else:
+                st.session_state.current_md = base_md
+    
         elif st.session_state.filter_mode == 'rural_urban':
-            rural_urban_filter = st.selectbox('Rural / Urban (optional)', ['KEEP BOTH'] + sorted(st.session_state.current_md['rural/urban'].dropna().unique().tolist()))
+            base_md = get_base_metadata(api_choice)
+            rural_urban_filter = st.selectbox('Rural / Urban (optional)', ['KEEP BOTH'] + sorted(base_md['rural/urban'].dropna().unique().tolist()))
             if rural_urban_filter != 'KEEP BOTH':
-                st.session_state.current_md = st.session_state.current_md[st.session_state.current_md['rural/urban'] == rural_urban_filter]
+                st.session_state.current_md = base_md[base_md['rural/urban'] == rural_urban_filter]
                 st.session_state.filter_mode = 'segment'  # go into segment filter with modified st.session_state.current_md to be for rural/urban
                 st.session_state.filters_applied = 'Rural / Urban'
-                # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
+            else:
+                st.session_state.current_md = base_md
+            
         elif st.session_state.filter_mode == 'quarter':
-            quarter_filter = st.selectbox('Quarter (optional)', ['KEEP ALL YEARS/QUARTERS'] + sorted(st.session_state.current_md['quarter'].dropna().unique().tolist()))
+            base_md = get_base_metadata(api_choice)
+            quarter_filter = st.selectbox('Quarter (optional)', ['KEEP ALL YEARS/QUARTERS'] + sorted(base_md['quarter'].dropna().unique().tolist()))
             if quarter_filter != 'KEEP ALL YEARS/QUARTERS':
-                st.session_state.current_md = st.session_state.current_md[st.session_state.current_md['quarter'] == quarter_filter]
+                st.session_state.current_md = base_md[base_md['quarter'] == quarter_filter]
                 st.session_state.filter_mode = 'segment'
                 st.session_state.filters_applied = 'Quarter/Yearly'
-                # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
+            else:
+                st.session_state.current_md = base_md
         
-        if st.session_state.filter_mode == 'segment':        
+        if st.session_state.filter_mode == 'segment':
+            if st.session_state.current_md is None:
+                st.session_state.current_md = get_base_metadata(api_choice)
             segment = st.selectbox('Segment', ['Select...'] + sorted(st.session_state.current_md['segment'].dropna().unique().tolist()))
             if segment != 'Select...':
                 st.write(f'Filters Applied: {st.session_state.filters_applied}')
