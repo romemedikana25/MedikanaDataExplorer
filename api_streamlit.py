@@ -91,7 +91,7 @@ FETCHERS = {
 }
 
 ################################################   STREAMLIT APP   ###################################################
-st.title('Medikana Health API Data Explorer')
+st.title('Medikana Health API Data Explorer (Beta V.2.0)')
 
 # ---- SIDEBAR UI ---- #
 with st.sidebar:
@@ -142,7 +142,7 @@ with st.sidebar:
         st.markdown("### Explore by Filters")
         api_choice = st.selectbox('Choose Data Source/API', list(METADATA_FILES.keys()))
         md = load_metadata(api_choice)
-        st.session_state.current_md = md
+        st.session_state.current_md = md  # store current metadata for further use
 
         st.markdown("Choose Filter to Explore")
         if st.button('Gender'):
@@ -186,8 +186,7 @@ with st.sidebar:
                 st.session_state.filters_applied = 'Quarter/Yearly'
                 # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
         
-        if st.session_state.filter_mode == 'segment':  
-            print(sorted(st.session_state.current_md['segment'].dropna().unique().tolist()))
+        if st.session_state.filter_mode == 'segment':        
             segment = st.selectbox('Segment', ['Select...'] + sorted(st.session_state.current_md['segment'].dropna().unique().tolist()))
             if segment != 'Select...':
                 st.write(f'Filters Applied: {st.session_state.filters_applied}')
@@ -287,7 +286,3 @@ if st.session_state.dfs is not None:
             img_buffer = io.BytesIO()
             fig.savefig(img_buffer, format='png', bbox_inches='tight')
             st.download_button("Download Plot as PNG", data=img_buffer.getvalue(), file_name=f"{name}_plot.png", mime="image/png")
-
-
-    # csv = df_all.to_csv(index=False).encode()
-    # st.download_button('Download CSV', csv, file_name='medikana_data.csv', mime='text/csv')
