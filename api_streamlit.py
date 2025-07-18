@@ -187,9 +187,9 @@ with st.sidebar:
         
         if st.session_state.filter_mode is 'segment':
             st.write(f'Filters Applied: {st.session_state.filters_applied}')
-            segment = st.selectbox('Segment', ['Select...'] + sorted(st.session_state.current_md['segment'].dropna().unique().tolist()))
+            segment = st.selectbox('Segment', ['Select...'] + sorted(md['segment'].dropna().unique().tolist()))
             if segment != 'Select...':
-                md_seg = st.session_state.current_md[st.session_state.current_md['segment'] == segment]
+                md_seg = md[md['segment'] == segment]
                 category = st.selectbox('Category', ['Select...'] + sorted(md_seg['category'].dropna().unique().tolist()))
 
                 if category != 'Select...':
