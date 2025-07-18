@@ -156,42 +156,43 @@ with st.sidebar:
             st.session_state.filter_mode = 'segment'
 
         # Filter selections
-        if st.session_state.filter_mode is 'gender':
-            gender_filter = st.selectbox('Gender (optional)', ['KEEP ALL'] + sorted(md['gender'].dropna().unique().tolist()))
+        if st.session_state.filter_mode == 'gender':
+            gender_filter = st.selectbox('Gender (optional)', ['KEEP ALL'] + sorted(st.session_state.current_md['gender'].dropna().unique().tolist()))
             if gender_filter != 'KEEP ALL':
-                md = md[md['gender'] == gender_filter]
+                st.session_state.current_md = st.session_state.current_md[st.session_state.current_md['gender'] == gender_filter]
                 st.session_state.filter_mode = 'segment'  # go into segment filter with modified md to be for gender
                 st.session_state.filters_applied = 'Gender'
-                st.session_state.current_md = md  # store current metadata for further use
-        elif st.session_state.filter_mode is 'age_group':
-            age_group_filter = st.selectbox('Age group (optional)', ['KEEP ALL'] + sorted(md['agegroup'].dropna().unique().tolist()))
+                # st.session_state.current_md = md  # store current metadata for further use
+        elif st.session_state.filter_mode == 'age_group':
+            age_group_filter = st.selectbox('Age group (optional)', ['KEEP ALL'] + sorted(st.session_state.current_md['agegroup'].dropna().unique().tolist()))
             if age_group_filter != 'KEEP ALL':
-                md = md[md['agegroup'] == age_group_filter]
-                st.session_state.filter_mode = 'segment'  # go into segment filter with modified md to be for age group
+                st.session_state.current_md = st.session_state.current_md[st.session_state.current_md['agegroup'] == age_group_filter]
+                st.session_state.filter_mode = 'segment'  # go into segment filter with modified st.session_state.current_md to be for age group
                 st.session_state.filters_applied = 'Age Group'
-                st.session_state.current_md = md  # store current metadata for further use
-        elif st.session_state.filter_mode is 'rural_urban':
-            rural_urban_filter = st.selectbox('Rural / Urban (optional)', ['KEEP BOTH'] + sorted(md['rural/urban'].dropna().unique().tolist()))
+                # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
+        elif st.session_state.filter_mode == 'rural_urban':
+            rural_urban_filter = st.selectbox('Rural / Urban (optional)', ['KEEP BOTH'] + sorted(st.session_state.current_md['rural/urban'].dropna().unique().tolist()))
             if rural_urban_filter != 'KEEP BOTH':
-                md = md[md['rural/urban'] == rural_urban_filter]
-                st.session_state.filter_mode = 'segment'  # go into segment filter with modified md to be for rural/urban
+                st.session_state.current_md = st.session_state.current_md[st.session_state.current_md['rural/urban'] == rural_urban_filter]
+                st.session_state.filter_mode = 'segment'  # go into segment filter with modified st.session_state.current_md to be for rural/urban
                 st.session_state.filters_applied = 'Rural / Urban'
-                st.session_state.current_md = md  # store current metadata for further use
-        elif st.session_state.filter_mode is 'quarter':
-            quarter_filter = st.selectbox('Quarter (optional)', ['KEEP ALL YEARS/QUARTERS'] + sorted(md['quarter'].dropna().unique().tolist()))
+                # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
+        elif st.session_state.filter_mode == 'quarter':
+            quarter_filter = st.selectbox('Quarter (optional)', ['KEEP ALL YEARS/QUARTERS'] + sorted(st.session_state.current_md['quarter'].dropna().unique().tolist()))
             if quarter_filter != 'KEEP ALL YEARS/QUARTERS':
-                md = md[md['quarter'] == quarter_filter]
+                st.session_state.current_md = st.session_state.current_md[st.session_state.current_md['quarter'] == quarter_filter]
                 st.session_state.filter_mode = 'segment'
                 st.session_state.filters_applied = 'Quarter/Yearly'
-                st.session_state.current_md = md  # store current metadata for further use
+                # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
         
-        if st.session_state.filter_mode is 'segment':
-            segment = st.selectbox('Segment', ['Select...'] + sorted(md['segment'].dropna().unique().tolist()))
+        if st.session_state.filter_mode == 'segment':         
+            segment = st.selectbox('Segment', ['Select...'] + sorted(st.session_state.current_md['segment'].dropna().unique().tolist()))
             if segment != 'Select...':
                 st.write(f'Filters Applied: {st.session_state.filters_applied}')
-                st.session_state.current_md = md  # store current metadata for further use
-                md_seg = st.session_state.current_md[st.session_state.currnt_md['segment'] == segment]
-                category = st.selectbox('Category', ['Select...'] + sorted(md_seg['category'].dropna().unique().tolist()))
+                # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
+                st.session_state.current_md = st.session_state.current_md[st.session_state.currnt_md['segment'] == segment]
+                md_seg = st.session_state.current_md
+                category = st.selectbox('Category', ['Select...'] + sorted(md_seg['category'].dropna().unique().tolist())
 
                 if category != 'Select...':
                     md_cat = md_seg[md_seg['category'] == category]
