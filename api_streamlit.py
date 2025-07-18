@@ -192,7 +192,7 @@ with st.sidebar:
                 # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
                 st.session_state.current_md = st.session_state.current_md[st.session_state.currnt_md['segment'] == segment]
                 md_seg = st.session_state.current_md
-                category = st.selectbox('Category', ['Select...'] + sorted(md_seg['category'].dropna().unique().tolist())
+                category = st.selectbox('Category', ['Select...'] + sorted(md_seg['category'].dropna().unique().tolist()))
 
                 if category != 'Select...':
                     md_cat = md_seg[md_seg['category'] == category]
