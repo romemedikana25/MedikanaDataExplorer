@@ -186,10 +186,11 @@ with st.sidebar:
                 st.session_state.current_md = md  # store current metadata for further use
         
         if st.session_state.filter_mode is 'segment':
-            st.write(f'Filters Applied: {st.session_state.filters_applied}')
             segment = st.selectbox('Segment', ['Select...'] + sorted(md['segment'].dropna().unique().tolist()))
             if segment != 'Select...':
-                md_seg = md[md['segment'] == segment]
+                st.write(f'Filters Applied: {st.session_state.filters_applied}')
+                st.session_state.current_md = md  # store current metadata for further use
+                md_seg = st.session_state.current_md[st.session_state.currnt_md['segment'] == segment]
                 category = st.selectbox('Category', ['Select...'] + sorted(md_seg['category'].dropna().unique().tolist()))
 
                 if category != 'Select...':
