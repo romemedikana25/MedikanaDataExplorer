@@ -14,6 +14,7 @@ def check_password():
             st.session_state["password"] = ""
         else:
             st.session_state["authenticated"] = False
+            st.error("❌ Incorrect password")
 
     if "authenticated" not in st.session_state:
         st.session_state["authenticated"] = False
@@ -103,6 +104,7 @@ with st.sidebar:
         st.session_state.filter_mode = None
         st.session_state.filters_applied = None
         st.session_state.current_md = None
+        st.session_state.clear()
         st.rerun()
 
     st.markdown("Choose Method of Exploration")
