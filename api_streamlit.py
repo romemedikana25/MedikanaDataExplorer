@@ -1,3 +1,4 @@
+# Data Explorer Packages
 import pandas as pd
 import streamlit as st
 import wbdata
@@ -5,6 +6,18 @@ import requests
 import matplotlib.pyplot as plt
 import io
 import urllib.parse
+import time
+
+# Text Summarization Packages
+import subprocess
+import os
+from tempfile import NamedTemporaryFile
+import shutil
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_openai import ChatOpenAI
+from langchain.chains.llm import LLMChain
+from langchain_core.prompts import PromptTemplate
+from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 
 # 🔐 Password protection
 def check_password():
@@ -27,6 +40,8 @@ def check_password():
 check_password()
 
 # Initialize session state variables
+if 'tool' not in st.session_state:
+    st.session_state.tool = None
 if 'dfs' not in st.session_state:
     st.session_state.dfs = []
 if 'reset' not in st.session_state:
@@ -50,7 +65,7 @@ def load_google_sheet(file_id: str, sheet_name: str) -> pd.DataFrame:
 # Metadata files for World Bank and WHO
 # wb_metadata = '/Users/rome/Documents/Medikana/Database Project/DataBase Index - WB Dataset Index.csv'
 # who_metadata = None
-GOOGLE_SHEET_ID = '1I5P91Eo0Cc7XxC_iKG9VzSfwEehjjkSLiuhrXizbfxU'
+GOOGLE_SHEET_ID = st.secrets["GOOGLE_SHEET_ID"]
 METADATA_FILES = {
     'World Bank': 'WB Dataset Index',
     # 'World Health Organization': 'WHO Dataset Index'
@@ -96,211 +111,254 @@ FETCHERS = {
 }
 
 ################################################   STREAMLIT APP   ###################################################
-st.title('Medikana Health API Data Explorer (Beta V.2.0)')
+if not st.session_state.tool:
+    st.title('Welcome to the Medikana Research Tool!')
+    st.subheader('Please choose a tool to use:')
+    tool_options = ['Select a tool...', 'Data Explorer', 'Text Summarizer']
+    tool_choice = st.selectbox('Select a tool:', tool_options)
 
-# ---- SIDEBAR UI ---- #
-with st.sidebar:
-    if st.button("Reset Tool"):
-        st.session_state.dfs = []
-        # st.session_state.dataset_names = []
-        st.session_state.reset = True
-        st.session_state.mode = None
-        st.session_state.filter_mode = None
-        st.session_state.filters_applied = None
-        st.session_state.current_md = None
+    if tool_choice == 'Select a tool...':
+        st.info("Please select a tool from the dropdown menu above to get started.")
+    else:
+        st.session_state.tool = tool_choice
         st.rerun()
 
-    st.markdown("Choose Method of Exploration")
-    if st.button("Explore by Indicator Names"):
-        st.session_state.mode = 'by_names'
+else:
+    if st.session_state.tool == 'Data Explorer':
+        # success_message = st.empty()
+        # success_message.success("You have selected the Data Explorer tool. Use the sidebar to explore data by indicator names or filters.")
+        # time.sleep(1)
+        # success_message.empty()
+        if st.button("⬅ Back to Home"):
+            st.session_state.tool = None
+            st.rerun()
 
-    elif st.button("Explore by Filters"):
-        st.session_state.mode = 'filters'
+    ############################### Data Explorer Tool #####################################
 
-    if st.session_state.mode == 'by_names':
-        st.markdown("### Search by Indicator Names")
-        # search bar that searches both indicator codes and names in WHO and WB metadata
-        search_query = st.text_input("Enter Indicator Name", key='search_query')
-        if search_query:
-            results = {}
-            for source, path in METADATA_FILES.items():
-                md = load_metadata(source)
-                # Search in both 'code' and 'name' columns and return if matches in either
-                matches = md[md['name'].str.contains(search_query, case=False, na=False)]
-                # get tuple of name, code pairs in matches df
-                for _, row in matches.iterrows():
-                    results[row['name']] = (row['code'], source)
-            if results:
-                # first create single select box with all the indicator names to select from then whichever chosen are df to fetch and concat
-                selected_indicator = st.selectbox("Select Indicators", ["Select..."] + list(results.keys()))
-                if selected_indicator != "Select...":
-                    # go into fetch function to return data then filter by selected indicator
-                    fetcher = FETCHERS[results[selected_indicator][1]]
-                    code = results[selected_indicator][0]
-                    series_data = fetcher(code, COUNTRIES)
-                    st.session_state.dfs = [(selected_indicator, series_data.reset_index())]
-                    # st.session_state.dataset_names = [selected_indicator]
+        st.title('Medikana Health API Data Explorer (Beta V.2.0)')
 
-                            
+        # ---- SIDEBAR UI ---- #
+        with st.sidebar:
+            if st.button("Reset Data Explorer"):
+                st.session_state.dfs = []
+                # st.session_state.dataset_names = []
+                st.session_state.reset = True
+                st.session_state.mode = None
+                st.session_state.filter_mode = None
+                st.session_state.filters_applied = None
+                st.session_state.current_md = None
+                st.rerun()
 
-    if st.session_state.mode == 'filters':
-        st.markdown("### Explore by Filters")
-        api_choice = st.selectbox('Choose Data Source/API', list(METADATA_FILES.keys()))
-        md = load_metadata(api_choice)
-        st.session_state.current_md = md  # store current metadata for further use
+            st.markdown("Choose Method of Exploration")
+            if st.button("Explore by Indicator Names"):
+                st.session_state.mode = 'by_names'
 
-        st.markdown("Choose Filter to Explore")
-        if st.button('Gender'):
-            st.session_state.filter_mode = 'gender'
-        elif st.button('Age Group'):
-            st.session_state.filter_mode = 'age_group'
-        elif st.button('Rural / Urban'):    
-            st.session_state.filter_mode = 'rural_urban'
-        elif st.button('Quarter'):  
-            st.session_state.filter_mode = 'quarter'
-        elif st.button('Segment'):
-            st.session_state.filter_mode = 'segment'
+            elif st.button("Explore by Filters"):
+                st.session_state.mode = 'filters'
 
-        # Filter selections
-        if st.session_state.filter_mode == 'gender':
-            base_md = get_base_metadata(api_choice)
-            gender_filter = st.selectbox('Gender (optional)', ['KEEP ALL'] + sorted(base_md['gender'].dropna().unique().tolist()))
-            if gender_filter != 'KEEP ALL':
-                st.session_state.current_md = base_md[base_md['gender'] == gender_filter]
-                st.session_state.filter_mode = 'segment'
-                st.session_state.filters_applied = 'Gender'
-            else:
-                st.session_state.current_md = base_md
-            
-        elif st.session_state.filter_mode == 'age_group':
-            base_md = get_base_metadata(api_choice)
-            age_group_filter = st.selectbox('Age group (optional)', ['KEEP ALL'] + sorted(base_md['agegroup'].dropna().unique().tolist()))
-            if age_group_filter != 'KEEP ALL':
-                st.session_state.current_md = base_md[base_md['agegroup'] == age_group_filter]
-                st.session_state.filter_mode = 'segment'  # go into segment filter with modified st.session_state.current_md to be for age group
-                st.session_state.filters_applied = 'Age Group'
-            else:
-                st.session_state.current_md = base_md
-    
-        elif st.session_state.filter_mode == 'rural_urban':
-            base_md = get_base_metadata(api_choice)
-            rural_urban_filter = st.selectbox('Rural / Urban (optional)', ['KEEP BOTH'] + sorted(base_md['rural/urban'].dropna().unique().tolist()))
-            if rural_urban_filter != 'KEEP BOTH':
-                st.session_state.current_md = base_md[base_md['rural/urban'] == rural_urban_filter]
-                st.session_state.filter_mode = 'segment'  # go into segment filter with modified st.session_state.current_md to be for rural/urban
-                st.session_state.filters_applied = 'Rural / Urban'
-            else:
-                st.session_state.current_md = base_md
-            
-        elif st.session_state.filter_mode == 'quarter':
-            base_md = get_base_metadata(api_choice)
-            quarter_filter = st.selectbox('Quarter (optional)', ['KEEP ALL YEARS/QUARTERS'] + sorted(base_md['quarter'].dropna().unique().tolist()))
-            if quarter_filter != 'KEEP ALL YEARS/QUARTERS':
-                st.session_state.current_md = base_md[base_md['quarter'] == quarter_filter]
-                st.session_state.filter_mode = 'segment'
-                st.session_state.filters_applied = 'Quarter/Yearly'
-            else:
-                st.session_state.current_md = base_md
-        
-        if st.session_state.filter_mode == 'segment':
-            if st.session_state.current_md is None:
-                st.session_state.current_md = get_base_metadata(api_choice)
-            segment = st.selectbox('Segment', ['Select...'] + sorted(st.session_state.current_md['segment'].dropna().unique().tolist()))
-            if segment != 'Select...':
-                st.write(f'Filters Applied: {st.session_state.filters_applied}')
-                # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
-                st.session_state.current_md = st.session_state.current_md[st.session_state.current_md['segment'] == segment]
-                md_seg = st.session_state.current_md
-                category = st.selectbox('Category', ['Select...'] + sorted(md_seg['category'].dropna().unique().tolist()))
+            if st.session_state.mode == 'by_names':
+                st.markdown("### Search by Indicator Names")
+                # search bar that searches both indicator codes and names in WHO and WB metadata
+                search_query = st.text_input("Enter Indicator Name", key='search_query')
+                if search_query:
+                    results = {}
+                    for source, path in METADATA_FILES.items():
+                        md = load_metadata(source)
+                        # Search in both 'code' and 'name' columns and return if matches in either
+                        matches = md[md['name'].str.contains(search_query, case=False, na=False)]
+                        # get tuple of name, code pairs in matches df
+                        for _, row in matches.iterrows():
+                            results[row['name']] = (row['code'], source)
+                    if results:
+                        # first create single select box with all the indicator names to select from then whichever chosen are df to fetch and concat
+                        selected_indicator = st.selectbox("Select Indicators", ["Select..."] + list(results.keys()))
+                        if selected_indicator != "Select...":
+                            # go into fetch function to return data then filter by selected indicator
+                            fetcher = FETCHERS[results[selected_indicator][1]]
+                            code = results[selected_indicator][0]
+                            series_data = fetcher(code, COUNTRIES)
+                            st.session_state.dfs = [(selected_indicator, series_data.reset_index())]
+                            # st.session_state.dataset_names = [selected_indicator]
 
-                if category != 'Select...':
-                    md_cat = md_seg[md_seg['category'] == category]
+                                    
 
-                    if md_cat['subcategory'].isnull().all():
-                        subcategory = ''
-                        md_sub = md_cat
+            if st.session_state.mode == 'filters':
+                st.markdown("### Explore by Filters")
+                api_choice = st.selectbox('Choose Data Source/API', list(METADATA_FILES.keys()))
+                md = load_metadata(api_choice)
+                st.session_state.current_md = md  # store current metadata for further use
+
+                st.markdown("Choose Filter to Explore")
+                if st.button('Gender'):
+                    st.session_state.filter_mode = 'gender'
+                elif st.button('Age Group'):
+                    st.session_state.filter_mode = 'age_group'
+                elif st.button('Rural / Urban'):    
+                    st.session_state.filter_mode = 'rural_urban'
+                elif st.button('Quarter'):  
+                    st.session_state.filter_mode = 'quarter'
+                elif st.button('Segment'):
+                    st.session_state.filter_mode = 'segment'
+
+                # Filter selections
+                if st.session_state.filter_mode == 'gender':
+                    base_md = get_base_metadata(api_choice)
+                    gender_filter = st.selectbox('Gender (optional)', ['KEEP ALL'] + sorted(base_md['gender'].dropna().unique().tolist()))
+                    if gender_filter != 'KEEP ALL':
+                        st.session_state.current_md = base_md[base_md['gender'] == gender_filter]
+                        st.session_state.filter_mode = 'segment'
+                        st.session_state.filters_applied = 'Gender'
                     else:
-                        subcat_options = md_cat['subcategory'].dropna().unique().tolist()
-                        subcategory = st.selectbox('Sub-category', ['Select...'] + sorted(subcat_options))
-                        md_sub = md_cat if subcategory == 'Select...' else md_cat[md_cat['subcategory'] == subcategory]
+                        st.session_state.current_md = base_md
+                    
+                elif st.session_state.filter_mode == 'age_group':
+                    base_md = get_base_metadata(api_choice)
+                    age_group_filter = st.selectbox('Age group (optional)', ['KEEP ALL'] + sorted(base_md['agegroup'].dropna().unique().tolist()))
+                    if age_group_filter != 'KEEP ALL':
+                        st.session_state.current_md = base_md[base_md['agegroup'] == age_group_filter]
+                        st.session_state.filter_mode = 'segment'  # go into segment filter with modified st.session_state.current_md to be for age group
+                        st.session_state.filters_applied = 'Age Group'
+                    else:
+                        st.session_state.current_md = base_md
+            
+                elif st.session_state.filter_mode == 'rural_urban':
+                    base_md = get_base_metadata(api_choice)
+                    rural_urban_filter = st.selectbox('Rural / Urban (optional)', ['KEEP BOTH'] + sorted(base_md['rural/urban'].dropna().unique().tolist()))
+                    if rural_urban_filter != 'KEEP BOTH':
+                        st.session_state.current_md = base_md[base_md['rural/urban'] == rural_urban_filter]
+                        st.session_state.filter_mode = 'segment'  # go into segment filter with modified st.session_state.current_md to be for rural/urban
+                        st.session_state.filters_applied = 'Rural / Urban'
+                    else:
+                        st.session_state.current_md = base_md
+                    
+                elif st.session_state.filter_mode == 'quarter':
+                    base_md = get_base_metadata(api_choice)
+                    quarter_filter = st.selectbox('Quarter (optional)', ['KEEP ALL YEARS/QUARTERS'] + sorted(base_md['quarter'].dropna().unique().tolist()))
+                    if quarter_filter != 'KEEP ALL YEARS/QUARTERS':
+                        st.session_state.current_md = base_md[base_md['quarter'] == quarter_filter]
+                        st.session_state.filter_mode = 'segment'
+                        st.session_state.filters_applied = 'Quarter/Yearly'
+                    else:
+                        st.session_state.current_md = base_md
+                
+                if st.session_state.filter_mode == 'segment':
+                    if st.session_state.current_md is None:
+                        st.session_state.current_md = get_base_metadata(api_choice)
+                    segment = st.selectbox('Segment', ['Select...'] + sorted(st.session_state.current_md['segment'].dropna().unique().tolist()))
+                    if segment != 'Select...':
+                        st.write(f'Filters Applied: {st.session_state.filters_applied}')
+                        # st.session_state.current_st.session_state.current_md = st.session_state.current_md  # store current metadata for further use
+                        st.session_state.current_md = st.session_state.current_md[st.session_state.current_md['segment'] == segment]
+                        md_seg = st.session_state.current_md
+                        category = st.selectbox('Category', ['Select...'] + sorted(md_seg['category'].dropna().unique().tolist()))
 
-                    metric = st.selectbox('Metric', ['Select...'] + sorted(md_sub['metric'].dropna().unique().tolist()))
+                        if category != 'Select...':
+                            md_cat = md_seg[md_seg['category'] == category]
 
-                    if metric != 'Select...':
-                        md_metric = md_sub[md_sub['metric'] == metric]
-
-                        if md_metric['submetric'].isnull().all():
-                            submetric = ''
-                            md_submetric = md_metric
-                        else:
-                            submetric_options = md_metric['submetric'].dropna().unique().tolist()
-                            submetric = st.selectbox('Submetric (optional)', ['Select...'] + sorted(submetric_options))
-                            md_submetric = md_metric if submetric == 'Select...' else md_metric[md_metric['submetric'] == submetric]
-
-                        fetch_clicked = st.button('Fetch data')
-
-                        if fetch_clicked:
-                            query_df = md_submetric.copy()
-
-                            if query_df.empty:
-                                st.error('No indicator codes found for the selected filters.')
+                            if md_cat['subcategory'].isnull().all():
+                                subcategory = ''
+                                md_sub = md_cat
                             else:
-                                st.success(f'Found {len(query_df)} indicator code(s). Fetching data...')
-                                fetcher = FETCHERS[api_choice]
-                                data_frames = []
-                                for _, row in query_df.iterrows():
-                                    code = row['code']
-                                    name = row['name']
-                                    series_data = fetcher(code, COUNTRIES)
-                                    if not series_data.empty:
-                                        data_frames.append((name, series_data))
+                                subcat_options = md_cat['subcategory'].dropna().unique().tolist()
+                                subcategory = st.selectbox('Sub-category', ['Select...'] + sorted(subcat_options))
+                                md_sub = md_cat if subcategory == 'Select...' else md_cat[md_cat['subcategory'] == subcategory]
 
-                                if data_frames:
-                                    st.session_state.dfs = data_frames
+                            metric = st.selectbox('Metric', ['Select...'] + sorted(md_sub['metric'].dropna().unique().tolist()))
 
-if st.session_state.dfs is not None:
-    df_all = st.session_state.dfs
+                            if metric != 'Select...':
+                                md_metric = md_sub[md_sub['metric'] == metric]
 
-    for name, df in df_all:
-        st.markdown(name)
-        # show the pct and num of missing data points in df
-        total_data_points = len(df)
-        num_missing = df.isna().sum().sum()
-        pct_missing = (num_missing / total_data_points) * 100
-        st.write("Data Summary:")
-        st.write(f"Total Data Points: {total_data_points}")
-        st.write(f"Missing Data Points: {num_missing} ({pct_missing:.2f}%)")
+                                if md_metric['submetric'].isnull().all():
+                                    submetric = ''
+                                    md_submetric = md_metric
+                                else:
+                                    submetric_options = md_metric['submetric'].dropna().unique().tolist()
+                                    submetric = st.selectbox('Submetric (optional)', ['Select...'] + sorted(submetric_options))
+                                    md_submetric = md_metric if submetric == 'Select...' else md_metric[md_metric['submetric'] == submetric]
 
-        # filter by year logic
-        year_options = sorted(df['date'].unique(), reverse=True)
-        select_all_option = 'Select All Years'
-        selected = st.multiselect('Select Years to Display', [select_all_option] + year_options)
-        if select_all_option in selected:
-            selected_years = year_options  # all years
-        else:
-            selected_years = selected
-        df_filtered = df[df['date'].isin(selected_years)]
+                                fetch_clicked = st.button('Fetch data')
 
-        # show final df
-        pivot_df = df_filtered.pivot(index='country', columns='date', values='value')
-        pivot_df = pivot_df[sorted(pivot_df.columns, reverse=True)]  # Sort years descending
-        st.dataframe(pivot_df, use_container_width=True, height=600)
+                                if fetch_clicked:
+                                    query_df = md_submetric.copy()
 
-        if st.button(f"Show Scatter Plot for: {name}"):
-            fig, ax = plt.subplots(figsize=(12, 6))
-            markers = ['o', 's', '^', 'D', 'v', '>', '<', 'P', '*', 'X', 'h']
-            for i, country in enumerate(df_filtered['country'].unique()):
-                subset = df_filtered[df_filtered['country'] == country]
-                ax.plot(subset['date'], subset['value'], marker=markers[i % len(markers)], label=country)
-            ax.set_title(name, fontsize=12)
-            ax.set_xlabel("Year", fontsize=10)
-            ax.set_ylabel("Value", fontsize=10)
-            ax.tick_params(axis='x', labelrotation=45, labelsize=8)
-            ax.tick_params(axis='y', labelsize=8)
-            ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize='small')
-            st.pyplot(fig)
+                                    if query_df.empty:
+                                        st.error('No indicator codes found for the selected filters.')
+                                    else:
+                                        st.success(f'Found {len(query_df)} indicator code(s). Fetching data...')
+                                        fetcher = FETCHERS[api_choice]
+                                        data_frames = []
+                                        for _, row in query_df.iterrows():
+                                            code = row['code']
+                                            name = row['name']
+                                            series_data = fetcher(code, COUNTRIES)
+                                            if not series_data.empty:
+                                                data_frames.append((name, series_data))
 
-            # Add download button for plot
-            img_buffer = io.BytesIO()
-            fig.savefig(img_buffer, format='png', bbox_inches='tight')
-            st.download_button("Download Plot as PNG", data=img_buffer.getvalue(), file_name=f"{name}_plot.png", mime="image/png")
+                                        if data_frames:
+                                            st.session_state.dfs = data_frames
+
+        if st.session_state.dfs is not None:
+            df_all = st.session_state.dfs
+
+            for name, df in df_all:
+                st.markdown(name)
+                # show the pct and num of missing data points in df
+                total_data_points = len(df)
+                num_missing = df.isna().sum().sum()
+                pct_missing = (num_missing / total_data_points) * 100
+                st.write("Data Summary:")
+                st.write(f"Total Data Points: {total_data_points}")
+                st.write(f"Missing Data Points: {num_missing} ({pct_missing:.2f}%)")
+
+                # filter by year logic
+                year_options = sorted(df['date'].unique(), reverse=True)
+                select_all_option = 'Select All Years'
+                selected = st.multiselect('Select Years to Display', [select_all_option] + year_options)
+                if select_all_option in selected:
+                    selected_years = year_options  # all years
+                else:
+                    selected_years = selected
+                df_filtered = df[df['date'].isin(selected_years)]
+
+                # show final df
+                pivot_df = df_filtered.pivot(index='country', columns='date', values='value')
+                pivot_df = pivot_df[sorted(pivot_df.columns, reverse=True)]  # Sort years descending
+                st.dataframe(pivot_df, use_container_width=True, height=600)
+
+                if st.button(f"Show Scatter Plot for: {name}"):
+                    fig, ax = plt.subplots(figsize=(12, 6))
+                    markers = ['o', 's', '^', 'D', 'v', '>', '<', 'P', '*', 'X', 'h']
+                    for i, country in enumerate(df_filtered['country'].unique()):
+                        subset = df_filtered[df_filtered['country'] == country]
+                        ax.plot(subset['date'], subset['value'], marker=markers[i % len(markers)], label=country)
+                    ax.set_title(name, fontsize=12)
+                    ax.set_xlabel("Year", fontsize=10)
+                    ax.set_ylabel("Value", fontsize=10)
+                    ax.tick_params(axis='x', labelrotation=45, labelsize=8)
+                    ax.tick_params(axis='y', labelsize=8)
+                    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize='small')
+                    st.pyplot(fig)
+
+                    # Add download button for plot
+                    img_buffer = io.BytesIO()
+                    fig.savefig(img_buffer, format='png', bbox_inches='tight')
+                    st.download_button("Download Plot as PNG", data=img_buffer.getvalue(), file_name=f"{name}_plot.png", mime="image/png")
+
+    ########################### End of Data Explorer Tool Logic ##############################
+
+
+    ############################### Text Summarizer Tool #####################################
+    elif st.session_state.tool == 'Text Summarizer':
+        # success_message = st.empty()
+        # success_message.success("You have selected the Text Summarizer tool. Use the sidebar to summarize text documents.")
+        # time.sleep(1)
+        # success_message.empty()
+        if st.button("⬅ Back to Home"):
+            st.session_state.tool = None
+            st.rerun()
+
+        # Placeholder for text summarization logic
+        st.title('Medikana Text Summarizer Tool')
+        st.write("This tool will allow you to summarize text documents using AI models.")
+
+        # Add your text summarization logic here
