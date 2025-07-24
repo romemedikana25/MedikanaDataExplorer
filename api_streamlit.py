@@ -20,6 +20,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 from fpdf import FPDF
 import textwrap
+import unicodedata
 
 # 🔐 Password protection
 def check_password():
@@ -389,6 +390,13 @@ else:
             pdf.output(output_file)
             return output_file
 
+        
+        def sanitize_text(text):
+            # Normalize Unicode characters to simple ASCII where possible
+            text = unicodedata.normalize('NFKD', text)
+            text = text.replace("’", "'").replace("“", '"').replace("”", '"').replace("–", "-")
+            return text
+        
         def move_file_to_downloads(pdf_file_path):
             downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
             destination_path = os.path.join(downloads_path, os.path.basename(pdf_file_path))
@@ -458,7 +466,8 @@ else:
                     summary = load_and_summarize(uploaded_file, prompt_template)
                     st.subheader('Summarization Result:')
                     st.markdown(summary)
-                    
+
+                    summary = sanitize_tezt(summary)
                     pdf_file = generate_pdf_with_fpdf(summary)
                     download_path = move_file_to_downloads(pdf_file)
                     st.markdown(f"**PDF Downloaded to your Downloads folder: {download_path}**")
