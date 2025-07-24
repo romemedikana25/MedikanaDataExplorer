@@ -18,9 +18,10 @@ from langchain_openai import ChatOpenAI
 from langchain.chains.llm import LLMChain
 from langchain_core.prompts import PromptTemplate
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
-from fpdf import FPDF
-import textwrap
-import unicodedata
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_JUSTIFY
 
 # 🔐 Password protection
 def check_password():
@@ -367,47 +368,36 @@ else:
         # Add your text summarization logic here
         MODEL = 'gpt-4o-mini'
 
-        def generate_pdf_with_fpdf(markdown_text, output_file='output.pdf'):
-            pdf = FPDF()
-            pdf.set_auto_page_break(auto=True, margin=15)
-            pdf.add_page()
-
-            # Use a Unicode-compatible font
-            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Path for Streamlit Cloud
-            if not os.path.exists(font_path):
-                font_path = "/usr/share/fonts/truetype/freefont/FreeSans.ttf"  # Fallback font
-            pdf.add_font("DejaVu", "", font_path, uni=True)
-            pdf.set_font("DejaVu", size=12)
-
-            # Split text into lines and add them to PDF
-            max_width = 80  # Max characters before wrapping
-            for line in markdown_text.split("\n"):
-                if not line.strip():
-                    pdf.ln(5)  # Add a blank line
-                    continue
+        def generate_pdf_with_reportlab(text, output_file="output.pdf"):
+            doc = SimpleDocTemplate(output_file, pagesize=letter,
+                                    rightMargin=40, leftMargin=40,
+                                    topMargin=60, bottomMargin=40)
         
-                # Split line into words; handle long words
-                words = line.split(" ")
-                for word in words:
-                    # If a single word is too long, break it into chunks
-                    if len(word) > max_width:
-                        wrapped_long_word = textwrap.wrap(word, width=max_width)
-                        for part in wrapped_long_word:
-                            pdf.multi_cell(0, 10, part)
-                    else:
-                        pdf.multi_cell(0, 10, word)
-                pdf.ln(5)  # Add spacing after each line
+            styles = getSampleStyleSheet()
+            paragraph_style = ParagraphStyle(
+                'Custom',
+                parent=styles['Normal'],
+                fontName='Helvetica',
+                fontSize=11,
+                leading=14,
+                alignment=TA_JUSTIFY
+            )
         
-            pdf.output(output_file)
+            flowables = []
+            for para in text.split("\n\n"):
+                flowables.append(Paragraph(para.replace("\n", "<br/>"), paragraph_style))
+                flowables.append(Spacer(1, 12))
+        
+            doc.build(flowables)
             return output_file
 
         
-        def sanitize_text(text):
-            # Normalize Unicode characters to simple ASCII where possible
-            text = unicodedata.normalize('NFKD', text)
-            text = text.encode('ascii', 'ignore').decode('utf-8')  # Remove non-ASCII chars
-            text = text.replace("’", "'").replace("“", '"').replace("”", '"').replace("–", "-")
-            return text
+        # def sanitize_text(text):
+        #     # Normalize Unicode characters to simple ASCII where possible
+        #     text = unicodedata.normalize('NFKD', text)
+        #     text = text.encode('ascii', 'ignore').decode('utf-8')  # Remove non-ASCII chars
+        #     text = text.replace("’", "'").replace("“", '"').replace("”", '"').replace("–", "-")
+        #     return text
         
         def move_file_to_downloads(pdf_file_path):
             downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
@@ -479,8 +469,8 @@ else:
                     st.subheader('Summarization Result:')
                     st.markdown(summary)
 
-                    summary = sanitize_text(summary)
-                    pdf_file = generate_pdf_with_fpdf(summary)
+                    # summary = sanitize_text(summary)
+                    pdf_file = generate_pdf_with_reportlab(summary)
                     download_path = move_file_to_downloads(pdf_file)
                     st.markdown(f"**PDF Downloaded to your Downloads folder: {download_path}**")
 
