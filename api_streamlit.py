@@ -467,7 +467,7 @@ else:
                     st.subheader('Summarization Result:')
                     st.markdown(summary)
 
-                    summary = sanitize_tezt(summary)
+                    summary = sanitize_text(summary)
                     pdf_file = generate_pdf_with_fpdf(summary)
                     download_path = move_file_to_downloads(pdf_file)
                     st.markdown(f"**PDF Downloaded to your Downloads folder: {download_path}**")
