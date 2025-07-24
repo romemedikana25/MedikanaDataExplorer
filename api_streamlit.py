@@ -365,7 +365,7 @@ else:
         # Add your text summarization logic here
         MODEL = 'gpt-4o-mini'
 
-        def generate_pdf_with_fpdf(markdown_text, output_file='output.pdf):
+        def generate_pdf_with_fpdf(markdown_text, output_file='output.pdf'):
             pdf = FPDF()
             pdf.set_auto_page_break(auto=True, margin=15)
             pdf.add_page()
