@@ -19,7 +19,7 @@ from langchain.chains.llm import LLMChain
 from langchain_core.prompts import PromptTemplate
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 import fitz  # PyMuPDF
-
+import markdown
 
 # 🔐 Password protection
 def check_password():
@@ -366,32 +366,23 @@ else:
         # Add your text summarization logic here
         MODEL = 'gpt-4o-mini'
 
-        def generate_pdf_with_pymupdf(text: str) -> bytes:
-            # Create an in-memory PDF
-            pdf_buffer = io.BytesIO()
+        def generate_pdf_from_markdown(md_text):
+            html_text = markdown_to_html(md_text) # convert md to html
             doc = fitz.open()
             page = doc.new_page()
             
-            # Define font and layout
-            text = text.strip()
-            font_size = 11
-            rect = fitz.Rect(50, 50, 550, 800)  # Page margins (x0, y0, x1, y1)
-            
-            # Add the text, automatically wrapping
-            page.insert_textbox(rect, text, fontsize=font_size, fontname="helv", align=0)
-            
-            # Save PDF to buffer
-            doc.save(pdf_buffer)
-            doc.close()
-            pdf_buffer.seek(0)
-            return pdf_buffer.getvalue()
+            # Define a rectangle for text placement
+            rect = fitz.Rect(50, 50, 550, 800)
+            page.insert_htmlbox(rect, html_text)
         
-        # def sanitize_text(text):
-        #     # Normalize Unicode characters to simple ASCII where possible
-        #     text = unicodedata.normalize('NFKD', text)
-        #     text = text.encode('ascii', 'ignore').decode('utf-8')  # Remove non-ASCII chars
-        #     text = text.replace("’", "'").replace("“", '"').replace("”", '"').replace("–", "-")
-        #     return text
+            # Save to bytes
+            pdf_bytes = io.BytesIO()
+            doc.save(pdf_bytes)
+            pdf_bytes.seek(0)
+            return pdf_bytes.getvalue()
+        
+        def markdown_to_html(md_text):
+            return markdown.markdown(md_text)
         
         def move_file_to_downloads(pdf_file_path):
             downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
@@ -463,11 +454,10 @@ else:
                     st.subheader('Summarization Result:')
                     st.markdown(summary)
 
-                    # summary = sanitize_text(summary)
-                    pdf_bytes = generate_pdf_with_pymupdf(summary)
+                    pdf_data = generate_pdf_from_markdown(summary)
                     st.download_button(
                         label="📥 Download PDF",
-                        data=pdf_bytes,
+                        data=pdf_data,
                         file_name="summary.pdf",
                         mime="application/pdf"
                     )
