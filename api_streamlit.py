@@ -359,7 +359,7 @@ else:
             st.rerun()
 
         # Placeholder for text summarization logic
-        st.title('Medikana Text Summarizer Tool')
+        st.set_page_config(layout='wide', page_title='Medikana Text Summarizer Tool')
         st.write("This tool will allow you to summarize text documents using AI models.")
 
         # Add your text summarization logic here
@@ -383,7 +383,7 @@ else:
             shutil.move(pdf_file_path, destination_path)
             return destination_path
 
-        def load_and_summarize(file):
+        def load_and_summarize(file, prompt_template):
             with NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
                 tmp.write(file.getvalue())
                 file_path = tmp.name
@@ -392,7 +392,6 @@ else:
                 loader = PyPDFLoader(file_path)
                 docs = loader.load()
 
-                prompt_template = st.text_input('Please enter your Open AI Prompt Template for summarization:')
                 # prompt_template = """
                 # Write a business report from the following earnings call transcript:
                 # {text}
@@ -430,21 +429,21 @@ else:
             return response['output_text']
 
         # Streamlit Interface
-        st.set_page_config(layout='wide', page_title="Call Transcript Summarizer")
-        st.title('Earnings Call Transcript Summarizer')
         col1, col2 = st.columns(2)
 
         with col1:
             st.subheader('Upload a PDF document:')
             uploaded_file = st.file_uploader("Choose a file", type="pdf", key="file_uploader")
-            if uploaded_file:
+            prompt_template = st.text_area('Please enter your Open AI Prompt Template for summarization:')
+            if uploaded_file and prompt_template:
                 summarize_flag = st.button('Summarize Document', key="summarize_button")
-                
+            else:
+                st.warning("Please upload a PDF file and enter a prompt template to summarize the document.")
 
-        if uploaded_file and summarize_flag:
+        if uploaded_file and prompt_template and summarize_flag:
             with col2:
                 with st.spinner('Summarizing...'):
-                    summary = load_and_summarize(uploaded_file)
+                    summary = load_and_summarize(uploaded_file, prompt_template)
                     st.subheader('Summarization Result:')
                     st.markdown(summary)
                     
