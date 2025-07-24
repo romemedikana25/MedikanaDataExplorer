@@ -369,7 +369,13 @@ else:
             pdf = FPDF()
             pdf.set_auto_page_break(auto=True, margin=15)
             pdf.add_page()
-            pdf.set_font("Arial", size=12)
+
+            # Use a Unicode-compatible font
+            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Path for Streamlit Cloud
+            if not os.path.exists(font_path):
+                font_path = "/usr/share/fonts/truetype/freefont/FreeSans.ttf"  # Fallback font
+            pdf.add_font("DejaVu", "", font_path, uni=True)
+            pdf.set_font("DejaVu", size=12)
 
             # Split text into lines and add them to PDF
             for line in markdown_text.split("\n"):
