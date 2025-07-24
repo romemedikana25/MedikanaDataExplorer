@@ -66,7 +66,7 @@ def load_google_sheet(file_id: str, sheet_name: str) -> pd.DataFrame:
 # Metadata files for World Bank and WHO
 # wb_metadata = '/Users/rome/Documents/Medikana/Database Project/DataBase Index - WB Dataset Index.csv'
 # who_metadata = None
-GOOGLE_SHEET_ID = st.secrets["GOOGLE_SHEET_ID"]
+GOOGLE_SHEET_ID = st.secrets["GOOGLESHEETID"]
 METADATA_FILES = {
     'World Bank': 'WB Dataset Index',
     # 'World Health Organization': 'WHO Dataset Index'
