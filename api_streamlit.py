@@ -382,10 +382,21 @@ else:
             # Split text into lines and add them to PDF
             max_width = 80  # Max characters before wrapping
             for line in markdown_text.split("\n"):
-                # Wrap long lines manually to prevent overflow
-                wrapped_lines = textwrap.wrap(line, width=max_width)
-                for wrapped_line in wrapped_lines:
-                    pdf.multi_cell(0, 10, wrapped_line)
+                if not line.strip():
+                    pdf.ln(5)  # Add a blank line
+                    continue
+        
+                # Split line into words; handle long words
+                words = line.split(" ")
+                for word in words:
+                    # If a single word is too long, break it into chunks
+                    if len(word) > max_width:
+                        wrapped_long_word = textwrap.wrap(word, width=max_width)
+                        for part in wrapped_long_word:
+                            pdf.multi_cell(0, 10, part)
+                    else:
+                        pdf.multi_cell(0, 10, word)
+                pdf.ln(5)  # Add spacing after each line
         
             pdf.output(output_file)
             return output_file
@@ -394,6 +405,7 @@ else:
         def sanitize_text(text):
             # Normalize Unicode characters to simple ASCII where possible
             text = unicodedata.normalize('NFKD', text)
+            text = text.encode('ascii', 'ignore').decode('utf-8')  # Remove non-ASCII chars
             text = text.replace("’", "'").replace("“", '"').replace("”", '"').replace("–", "-")
             return text
         
