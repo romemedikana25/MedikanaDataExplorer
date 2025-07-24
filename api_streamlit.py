@@ -378,8 +378,13 @@ else:
             pdf.set_font("DejaVu", size=12)
 
             # Split text into lines and add them to PDF
+            max_width = 80  # Max characters before wrapping
             for line in markdown_text.split("\n"):
-                pdf.multi_cell(0, 10, line)
+                # Wrap long lines manually to prevent overflow
+                wrapped_lines = textwrap.wrap(line, width=max_width)
+                for wrapped_line in wrapped_lines:
+                    pdf.multi_cell(0, 10, wrapped_line)
+        
             pdf.output(output_file)
             return output_file
 
