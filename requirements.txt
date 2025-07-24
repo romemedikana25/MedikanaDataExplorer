@@ -3,3 +3,10 @@ pandas
 wbdata
 matplotlib
 requests
+pyyaml
+pypdf
+openai
+langchain
+langchain-core
+langchain-community
+langchain-openai
