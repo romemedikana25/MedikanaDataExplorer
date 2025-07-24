@@ -18,6 +18,7 @@ from langchain_openai import ChatOpenAI
 from langchain.chains.llm import LLMChain
 from langchain_core.prompts import PromptTemplate
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
+from fpdf import FPDF
 
 # 🔐 Password protection
 def check_password():
@@ -364,18 +365,17 @@ else:
         # Add your text summarization logic here
         MODEL = 'gpt-4o-mini'
 
-        def generate_pdf_with_quarto(markdown_text):
-            with NamedTemporaryFile(delete=False, suffix=".qmd", mode='w') as md_file:
-                md_file.write(markdown_text)  # Write string directly
-                md_file_path = md_file.name
+        def generate_pdf_with_fpdf(markdown_text, output_file='output.pdf):
+            pdf = FPDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
 
-            pdf_file_path = md_file_path.replace('.qmd', '.pdf')
-            
-            # Use the Quarto command line instead of Python integration for more complex rendering
-            subprocess.run(["quarto", "render", md_file_path, "--to", "pdf"], check=True)
-            
-            os.remove(md_file_path)  # Clean up the Markdown file
-            return pdf_file_path
+            # Split text into lines and add them to PDF
+            for line in markdown_text.split("\n"):
+                pdf.multi_cell(0, 10, line)
+            pdf.output(output_file)
+            return output_file
 
         def move_file_to_downloads(pdf_file_path):
             downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
@@ -448,7 +448,7 @@ else:
                     st.subheader('Summarization Result:')
                     st.markdown(summary)
                     
-                    pdf_file = generate_pdf_with_quarto(summary)
+                    pdf_file = generate_pdf_with_fpdf(summary)
                     download_path = move_file_to_downloads(pdf_file)
                     st.markdown(f"**PDF Downloaded to your Downloads folder: {download_path}**")
 
