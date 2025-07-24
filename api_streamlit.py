@@ -19,6 +19,7 @@ from langchain.chains.llm import LLMChain
 from langchain_core.prompts import PromptTemplate
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 from fpdf import FPDF
+import textwrap
 
 # 🔐 Password protection
 def check_password():
