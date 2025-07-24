@@ -19,9 +19,7 @@ from langchain.chains.llm import LLMChain
 from langchain_core.prompts import PromptTemplate
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_JUSTIFY
+from reportlab.pdfgen import canvas
 
 # 🔐 Password protection
 def check_password():
@@ -368,29 +366,21 @@ else:
         # Add your text summarization logic here
         MODEL = 'gpt-4o-mini'
 
-        def generate_pdf_with_reportlab(text, output_file="output.pdf"):
-            doc = SimpleDocTemplate(output_file, pagesize=letter,
-                                    rightMargin=40, leftMargin=40,
-                                    topMargin=60, bottomMargin=40)
+        def generate_pdf_with_reportlab(text: str) -> bytes:
+            buffer = io.BytesIO()
+            c = canvas.Canvas(buffer, pagesize=letter)
+            width, height = letter
         
-            styles = getSampleStyleSheet()
-            paragraph_style = ParagraphStyle(
-                'Custom',
-                parent=styles['Normal'],
-                fontName='Helvetica',
-                fontSize=11,
-                leading=14,
-                alignment=TA_JUSTIFY
-            )
-        
-            flowables = []
-            for para in text.split("\n\n"):
-                flowables.append(Paragraph(para.replace("\n", "<br/>"), paragraph_style))
-                flowables.append(Spacer(1, 12))
-        
-            doc.build(flowables)
-            return output_file
-
+            y_position = height - 50
+            for line in text.split("\n"):
+                c.drawString(50, y_position, line)
+                y_position -= 15
+                if y_position < 50:  # Start new page
+                    c.showPage()
+                    y_position = height - 50
+            c.save()
+            buffer.seek(0)
+            return buffer.getvalue()
         
         # def sanitize_text(text):
         #     # Normalize Unicode characters to simple ASCII where possible
@@ -470,9 +460,13 @@ else:
                     st.markdown(summary)
 
                     # summary = sanitize_text(summary)
-                    pdf_file = generate_pdf_with_reportlab(summary)
-                    download_path = move_file_to_downloads(pdf_file)
-                    st.markdown(f"**PDF Downloaded to your Downloads folder: {download_path}**")
+                    pdf_bytes = generate_pdf_with_reportlab(summary)
+                    st.download_button(
+                        label="📥 Download PDF",
+                        data=pdf_bytes,
+                        file_name="summary.pdf",
+                        mime="application/pdf"
+                    )
 
         else:
             with col2:
