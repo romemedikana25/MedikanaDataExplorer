@@ -18,8 +18,8 @@ from langchain_openai import ChatOpenAI
 from langchain.chains.llm import LLMChain
 from langchain_core.prompts import PromptTemplate
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
+import fitz  # PyMuPDF
+
 
 # 🔐 Password protection
 def check_password():
@@ -366,21 +366,25 @@ else:
         # Add your text summarization logic here
         MODEL = 'gpt-4o-mini'
 
-        def generate_pdf_with_reportlab(text: str) -> bytes:
-            buffer = io.BytesIO()
-            c = canvas.Canvas(buffer, pagesize=letter)
-            width, height = letter
-        
-            y_position = height - 50
-            for line in text.split("\n"):
-                c.drawString(50, y_position, line)
-                y_position -= 15
-                if y_position < 50:  # Start new page
-                    c.showPage()
-                    y_position = height - 50
-            c.save()
-            buffer.seek(0)
-            return buffer.getvalue()
+        def generate_pdf_with_pymupdf(text: str) -> bytes:
+            # Create an in-memory PDF
+            pdf_buffer = io.BytesIO()
+            doc = fitz.open()
+            page = doc.new_page()
+            
+            # Define font and layout
+            text = text.strip()
+            font_size = 11
+            rect = fitz.Rect(50, 50, 550, 800)  # Page margins (x0, y0, x1, y1)
+            
+            # Add the text, automatically wrapping
+            page.insert_textbox(rect, text, fontsize=font_size, fontname="helv", align=0)
+            
+            # Save PDF to buffer
+            doc.save(pdf_buffer)
+            doc.close()
+            pdf_buffer.seek(0)
+            return pdf_buffer.getvalue()
         
         # def sanitize_text(text):
         #     # Normalize Unicode characters to simple ASCII where possible
@@ -460,7 +464,7 @@ else:
                     st.markdown(summary)
 
                     # summary = sanitize_text(summary)
-                    pdf_bytes = generate_pdf_with_reportlab(summary)
+                    pdf_bytes = generate_pdf_with_pymupdf(summary)
                     st.download_button(
                         label="📥 Download PDF",
                         data=pdf_bytes,
