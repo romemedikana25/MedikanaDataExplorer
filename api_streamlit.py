@@ -41,7 +41,7 @@ def check_password():
 
 check_password()
 
-# Initialize session state variables
+# Initialize session state variables for api tool
 if 'tool' not in st.session_state:
     st.session_state.tool = None
 if 'dfs' not in st.session_state:
@@ -57,6 +57,30 @@ if 'filters_applied' not in st.session_state:
 if 'current_md' not in st.session_state:
     st.session_state.current_md = None
 
+# Initialize clustering session state variables
+if 'cluster_step' not in st.session_state:
+    st.session_state.cluster_step = None
+if 'cluster_dataset' not in st.session_state:
+    st.session_state.cluster_dataset = None
+if 'cluster_cols' not in st.session_state:
+    st.session_state.cluster_cols = None
+if 'numerical_data' not in st.session_state:
+    st.session_state.numerical_data = None
+if 'scaled_data' not in st.session_state:
+    st.session_state.scaled_data = None
+if 'kmeans_fitted' not in st.session_state:
+    st.session_state.kmeans_fitted = None
+if 'cat_cols_to_add_back' not in st.session_state:
+    st.session_state.cat_cols_to_add_back = []
+if 'cat_data' not in st.session_state:
+    st.session_state.cat_data = None
+if 'scaler' not in st.session_state:
+    st.session_state.scaler = None
+if 'n_clusters' not in st.session_state:
+    st.session_state.n_clusters = 0
+if 'cluster_confirmed' not in st.session_state:
+    st.session_state.cluster_confirmed = False
+    
 def load_google_sheet(file_id: str, sheet_name: str) -> pd.DataFrame:
     encoded_sheet_name = urllib.parse.quote(sheet_name)
     url = f"https://docs.google.com/spreadsheets/d/{file_id}/gviz/tq?tqx=out:csv&sheet={encoded_sheet_name}"
@@ -116,7 +140,7 @@ FETCHERS = {
 if not st.session_state.tool:
     st.title('Welcome to the Medikana Research Tool!')
     st.subheader('Please choose a tool to use:')
-    tool_options = ['Select a tool...', 'Data Explorer', 'Text Summarizer']
+    tool_options = ['Select a tool...', 'Data Explorer', 'Text Summarizer', 'Segmentation/Clustering']
     tool_choice = st.selectbox('Select a tool:', tool_options)
 
     if tool_choice == 'Select a tool...':
@@ -465,3 +489,303 @@ else:
         else:
             with col2:
                 st.write("No file uploaded. Please upload a PDF file to proceed.")
+
+
+    ############################### End of Text Summarizer Tool #####################################
+
+
+    ################################## Segmentation/Clustering Tool #####################################
+    elif st.session_state.tool == 'Segmentation/Clustering':
+
+        if st.button("⬅ Back to Home"):
+            st.session_state.tool = None
+            st.session_state.cluster_step = None
+            st.session_state.cluster_dataset = None
+            st.session_state.cluster_cols = None
+            st.session_state.numerical_data = None
+            st.session_state.scaled_data = None
+            st.session_state.kmeans_fitted = None
+            st.session_state.cat_cols_to_add_back = []
+            st.session_state.cat_data = None
+            st.session_state.scaler = None
+            st.session_state.n_clusters = None
+
+            st.rerun()
+
+        # Placeholder for segmentation/clustering logic
+        # st.set_page_config(layout='wide', page_title='Medikana Segmentation/Clustering Tool')
+        st.write("This tool will allow you to segment or cluster data based on various criteria.")
+
+        # Add your segmentation/clustering logic here
+        MODEL = 'gpt-4o-mini'
+
+        # First we need to load the dataset that user wants to segment/cluster
+        if st.session_state.cluster_dataset is None:
+            st.session_state.cluster_step = 'load_dataset'
+            st.subheader('Load Dataset for Segmentation/Clustering')
+            # File uploader for dataset
+            if st.session_state.cluster_step == 'load_dataset':
+                dataset = st.file_uploader("Choose a file", type="csv", key="file_uploader")
+                if dataset is not None:
+                    try:
+                        st.session_state.cluster_dataset = pd.read_csv(dataset, header=0) # ensure header is there
+                        st.success("Dataset loaded successfully!")
+                        st.session_state.cluster_step = 'view_dataset'
+                    except Exception as e:
+                        st.error(f"Error loading dataset: {e}")
+                else:
+                    st.warning("Please upload a CSV file to proceed.")
+
+        if st.session_state.cluster_step == 'view_dataset':
+            # Now that dataset is loaded let us give the user the option to view the dataset
+            if st.session_state.cluster_dataset is not None:
+                if st.button("View Dataset"):
+                    st.subheader('Dataset Preview')
+                    st.dataframe(st.session_state.cluster_dataset.head(10), use_container_width=True)
+
+                    st.write("### Data Types:")
+                    st.write(st.session_state.cluster_dataset.dtypes)
+
+                    st.session_state.cluster_step = 'select_columns'
+                
+        if st.session_state.cluster_step == 'select_columns':
+            # let us give the user the option to choose the columns they want to choose for segmentation/clustering
+            st.markdown("### Select Columns for Segmentation/Clustering")
+            st.warning("Please ensure the columns you want to use for segmentation/clustering are numeric (i.e not categorical or text). The model will not work with non-numeric columns.")
+            columns = st.multiselect("Select columns to use for segmentation/clustering",
+                                        options=st.session_state.cluster_dataset.columns.tolist(),
+                                        default=[], # change to empty
+                                        key="cluster_columns_select")
+            cat_cols_to_add_back = st.multiselect("Select categorical columns to add back to the dataset after segmentation/clustering (usually names or IDs)",
+                                                    options=st.session_state.cluster_dataset.columns.tolist(),
+                                                    default=[],
+                                                    key="cluster_cats_select")
+            
+            if columns:
+                st.session_state.cluster_cols = columns
+                st.session_state.cat_cols_to_add_back = cat_cols_to_add_back
+                st.success(f"Selected Numerical Columns: {', '.join(columns)}")
+                st.success(f"Selected Categorical Columns to Add Back After Clustering: {', '.join(cat_cols_to_add_back)}")
+
+                # Show dataset summary including total rows and columns, number of missing values for each column, and data types
+                st.markdown("### Dataset Summary")
+                st.write(f"Total Datapoints: {len(st.session_state.cluster_dataset)}")
+                st.write("### Missing Values:")
+                st.write(st.session_state.cluster_dataset.isnull().sum())
+            
+                # Show a warning if there are any non-numeric columns in the selected columns
+                st.warning("Please ensure all selected columns for segmentation are numeric. Before clearing null values, ensure you are only deleting data due to missing important rows")
+                
+                if st.button("Proceed to Clear Null Values"):
+                    st.session_state.cluster_step = 'clear_null_values'
+                    st.rerun()
+    
+        if st.session_state.cluster_step == 'clear_null_values':
+            # Show button to clear null values
+            st.warning("Please ensure you are only deleting data due to missing important rows. This will clear all null values from the selected columns and retain categorical data.")
+            st.write('Number of Datapoints with null values in the following columns:')
+            st.write(st.session_state.cluster_dataset[st.session_state.cluster_cols].isnull().sum())
+
+            if st.button("Clear Null Values"):
+                st.session_state.numerical_data = st.session_state.cluster_dataset.copy()
+                st.session_state.numerical_data = st.session_state.numerical_data[st.session_state.cluster_cols]
+                st.session_state.numerical_data = st.session_state.numerical_data.dropna()
+
+                # only remove data from columns in cluster_cols ONLY because then we want to keep only those categorical features after na filtering
+                st.session_state.cat_data = st.session_state.cluster_dataset.copy()
+                st.session_state.cat_data = st.session_state.cat_data[st.session_state.cluster_cols + st.session_state.cat_cols_to_add_back].dropna(subset=st.session_state.cluster_cols, how='any')
+                st.session_state.cat_data = st.session_state.cat_data[st.session_state.cat_cols_to_add_back]
+
+                st.success("Null values cleared and Categorical data retained successfully!")
+                # Show how many rows and columns are left after clearing null values
+                st.write(f"Total Rows after clearing null values: {len(st.session_state.numerical_data)}")
+
+                # First give the user the summary statistics of the dataset
+                st.markdown("### Final Cluster Dataset Summary Statistics") 
+                st.write(st.session_state.numerical_data.describe())       
+
+            if st.button("Proceed to Standardization"):
+                st.session_state.cluster_step = 'proceed_to_standardization'
+                st.rerun()
+
+        if st.session_state.cluster_step == 'proceed_to_standardization':
+            # Show a button to proceed to segmentation/clustering but show warning if there are any non-numeric columns
+            
+            if st.session_state.numerical_data.select_dtypes(include=['object', 'category']).shape[1] != 0:
+                st.warning("Please ensure all selected columns are numeric.")
+                if st.button("Select Columns Again"):
+                    # Reset the session state to allow user to select columns again
+                    st.session_state.cluster_step = 'select_columns'
+                    st.session_state.numerical_data = None
+                    st.session_state.cat_data = None
+                    st.session_state.cat_cols_to_add_back = []
+                    st.session_state.cluster_cols = None
+                    st.rerun()
+            else:
+                st.success("Proceeding to segmentation/clustering...")
+
+            # Now give user option to choose the type of sttandardization they want to apply
+            st.markdown("### Choose Standardization Method")
+            standardization_method = st.selectbox("Select Standardization Method",
+                                                ["Min-Max Scaling", "Standard Scaling", "Robust Scaling"])
+            # give quick description of each method
+            if standardization_method == "Min-Max Scaling":
+                st.write("Min-Max Scaling scales the data to a fixed range, usually [0, 1]. It is sensitive to outliers.")
+            elif standardization_method == "Standard Scaling":
+                st.write("Standard Scaling standardizes the data to have a mean of 0 and a standard deviation of 1. It is less sensitive to outliers.")
+            elif standardization_method == "Robust Scaling":
+                st.write("Robust Scaling scales the data using statistics that are robust to outliers, such as the median and interquartile range.")
+
+            # Show button to apply standardization
+            if st.button("Apply Standardization"):
+                if standardization_method == "Min-Max Scaling":
+                    from sklearn.preprocessing import MinMaxScaler
+                    st.session_state.scaler = MinMaxScaler()
+                elif standardization_method == "Standard Scaling":
+                    from sklearn.preprocessing import StandardScaler
+                    st.session_state.scaler = StandardScaler()
+                elif standardization_method == "Robust Scaling":
+                    from sklearn.preprocessing import RobustScaler
+                    st.session_state.scaler = RobustScaler()
+
+                st.session_state.scaled_data = st.session_state.scaler.fit_transform(st.session_state.numerical_data)
+                st.success("Standardization applied successfully!")
+            if st.button("Analyze Potential Clusters"):
+                st.session_state.cluster_step = 'analyze_clusters'
+                st.rerun()
+
+        if st.session_state.cluster_step == 'analyze_clusters':
+            
+            # Now we will analyze potential clusters from 1 to 20 clusters
+            if st.session_state.scaled_data is not None:
+                st.markdown("### Analyze Potential Clusters")
+                from sklearn.cluster import KMeans
+                import matplotlib.pyplot as plt
+
+                # Calculate inertia for each number of clusters
+                inertia = []
+                for n_clusters in range(1, 21):
+                    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+                    kmeans.fit(st.session_state.scaled_data)
+                    inertia.append(kmeans.inertia_)
+
+                # Plot the elbow curve
+                fig, ax = plt.subplots(figsize=(12, 6))
+                ax.plot(range(1, 21), inertia, marker='o')
+                ax.set_title('Elbow Method for Optimal Clusters')
+                ax.set_xlabel('Number of Clusters')
+                ax.set_ylabel('Inertia')
+                st.pyplot(fig)
+
+                st.success("Elbow curve plotted successfully! Please choose the optimal number of clusters based on the elbow point.")
+
+                # Now give user option to choose the number of clusters
+                n_clusters = st.selectbox("Select Number of Clusters", options=range(1, 21), key="num_clusters_input")
+                st.session_state.n_clusters = n_clusters
+                # Confirm button
+                if st.button("Confirm Number of Clusters"):
+                    if 1 <= n_clusters <= 20:
+                        st.session_state.cluster_confirmed = True
+                        st.success(f"Number of clusters set to {n_clusters}")
+                        st.rerun()  # Jump to next render instantly
+                    else:
+                        st.error("Please select a number of clusters between 1 and 20.")
+
+                # Proceed button appears only if confirmed
+                if st.session_state.cluster_confirmed:
+                    if st.button("Proceed to Run Clustering"):
+                        st.session_state.cluster_step = 'run_clustering'
+                        st.rerun()
+
+        if st.session_state.cluster_step == 'run_clustering':
+            from sklearn.cluster import KMeans
+            kmeans = KMeans(n_clusters=st.session_state.n_clusters, random_state=42)
+            st.session_state.kmeans_fitted = kmeans.fit(st.session_state.scaled_data)
+            st.session_state.numerical_data['Cluster'] = st.session_state.kmeans_fitted.labels_
+            st.session_state.numerical_data[st.session_state.cat_cols_to_add_back] = (
+                st.session_state.cat_data[st.session_state.cat_cols_to_add_back].values
+            )
+            st.success("Clustering completed successfully!")
+
+            # Give option to view clustered data
+            if st.button("View Clustered Data"):
+                st.subheader('Clustered Data')
+                st.dataframe(st.session_state.numerical_data, use_container_width=True)
+
+                # Show summary of clusters
+                st.markdown("### Cluster Summary")
+                cluster_summary = (
+                    st.session_state.numerical_data
+                    .groupby('Cluster')[st.session_state.numerical_data.select_dtypes(include='number').columns]
+                    .mean()
+                )
+                st.dataframe(cluster_summary, use_container_width=True)
+
+                # Show download button for clustered data
+                csv = st.session_state.numerical_data.to_csv(index=False)
+                st.download_button("Download Clustered Data as CSV", csv, "clustered_data.csv", "text/csv")
+
+            if st.button("Proceed to Generate Cluster Summary"):
+                st.session_state.cluster_step = 'generate_cluster_summary'
+                st.rerun()
+
+        if st.session_state.cluster_step == 'generate_cluster_summary':
+            # Give option to give an Open AI text summary of the clusters in markdown format
+            
+            if not st.session_state.kmeans_fitted:
+                st.error("Please run clustering first.")
+            else:
+                prompt_template = """
+                Write a business report summarizing the following clusters:
+                {clusters}
+
+                Use the following Markdown format:
+                # Insert Descriptive Report Title
+
+                ## Cluster Summary
+                Give each cluster a descriptive name based on its characteristics. Use 3 to 5 numbered bullet points.
+                Please summarize the key characteristics of each cluster based on the pandas dataframes .describe() for each cluster.
+
+                ## Strategic Implications
+                Describe any strategic implications of the clusters. Use 3 to 5 numbered bullet points.
+
+                ## Conclusions
+                Conclude with any overarching business actions that the company is pursuing that may have positive or negative implications and what those implications are.
+                """
+
+                # Convert your DataFrames to a single string
+                clusters_text = "\n\n".join(
+                    f"Cluster {i}:\n{df.describe().to_string()}"
+                    for i, df in enumerate(
+                        st.session_state.numerical_data[st.session_state.numerical_data['Cluster'] == j]
+                        for j in range(st.session_state.numerical_data['Cluster'].nunique())
+                    )
+                )
+
+                # Build the LLMChain directly
+                prompt = PromptTemplate.from_template(prompt_template)
+                model = ChatOpenAI(
+                    model=MODEL,
+                    temperature=0,
+                    api_key=st.SECRETS['OPENAI'],
+                )
+                llm_chain = LLMChain(llm=model, prompt=prompt)
+
+                # Run GPT with your cluster data
+                with st.spinner("Generating AI cluster summary..."):
+                    response = llm_chain.invoke({"clusters": clusters_text})
+
+                # Some versions of LangChain return 'text', others 'output_text'
+                summary = (
+                    response.get("text")
+                    if isinstance(response, dict) and "text" in response
+                    else response
+                )
+
+                # Display the result
+                st.subheader("Open AI Summary of Clusters")
+                st.markdown(summary)
+
+
+                            
+
