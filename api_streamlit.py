@@ -233,11 +233,7 @@ else:
 
                                     
 
-            if st.session_state.mode == 'filters':
-                if "date" not in df.columns:
-                    st.error(f"No 'date' column found in dataset for {name}.")
-                    continue
-                
+            if st.session_state.mode == 'filters':                
                 st.markdown("### Explore by Filters")
                 api_choice = st.selectbox('Choose Data Source/API', list(METADATA_FILES.keys()))
                 md = load_metadata(api_choice)
@@ -356,6 +352,10 @@ else:
             df_all = st.session_state.dfs
 
             for name, df in df_all:
+                if "date" not in df.columns:
+                    st.error(f"No 'date' column found in dataset for {name}.")
+                    continue
+                
                 st.markdown(name)
                 # show the pct and num of missing data points in df
                 total_data_points = len(df)
