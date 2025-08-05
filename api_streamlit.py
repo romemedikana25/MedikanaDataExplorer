@@ -801,6 +801,14 @@ else:
                 st.subheader("Open AI Summary of Clusters")
                 st.markdown(summary)
 
+                pdf_data = generate_pdf_from_markdown(summary)
+                st.download_button(
+                    label="📥 Download PDF",
+                    data=pdf_data,
+                    file_name="summary.pdf",
+                    mime="application/pdf"
+                )
+
 
                             
 
