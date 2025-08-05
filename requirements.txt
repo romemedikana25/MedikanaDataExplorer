@@ -13,4 +13,4 @@ langchain-openai
 pymupdf
 markdown
 fpdf
-sklearn
+
