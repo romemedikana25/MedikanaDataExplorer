@@ -2,6 +2,7 @@
 import pandas as pd
 import streamlit as st
 import wbdata
+import importlib
 import requests
 import matplotlib.pyplot as plt
 import io
@@ -113,6 +114,7 @@ def load_metadata(source_key: str) -> pd.DataFrame:
 def fetch_wb(indicator_code: str, countries: list) -> pd.Series:
     """Fetch data from WB using wbdata library for specified countries."""
     try:
+        importlib.reload(wbdata)
         data_series = wbdata.get_series(indicator_code, country=countries)
         if data_series is None or data_series.empty:
             return pd.DataFrame(columns=["date", "country", "value"])
