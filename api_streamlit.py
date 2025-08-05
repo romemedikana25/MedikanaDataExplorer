@@ -782,7 +782,7 @@ else:
                 model = ChatOpenAI(
                     model=MODEL,
                     temperature=0,
-                    api_key=st.SECRETS['OPENAI'],
+                    api_key=st.secrets['OPENAI'],
                 )
                 llm_chain = LLMChain(llm=model, prompt=prompt)
 
