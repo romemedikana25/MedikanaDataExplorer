@@ -114,16 +114,27 @@ def load_metadata(source_key: str) -> pd.DataFrame:
 def fetch_wb(indicator_code: str, countries: list) -> pd.Series:
     """Fetch data from WB using wbdata library for specified countries."""
     try:
-        importlib.reload(wbdata)
+        importlib.reload(wbdata)  # Avoid SQLite threading issue
+
         data_series = wbdata.get_series(indicator_code, country=countries)
         if data_series is None or data_series.empty:
             return pd.DataFrame(columns=["date", "country", "value"])
-        
+
         df = data_series.reset_index()
-        # World Bank returns 'date' as year, ensure proper naming
+
+        # Ensure 'date' column exists
         if "date" not in df.columns and "year" in df.columns:
             df.rename(columns={"year": "date"}, inplace=True)
-        return df[["date", "country", indicator_code]].rename(columns={indicator_code: "value"})
+
+        # Identify value column dynamically
+        value_col = [col for col in df.columns if col not in ["date", "country"]]
+        if value_col:
+            df.rename(columns={value_col[0]: "value"}, inplace=True)
+        else:
+            df["value"] = None  # No data
+
+        return df[["date", "country", "value"]]
+
     except Exception as e:
         st.error(f"Error fetching data for {indicator_code}: {e}")
         return pd.DataFrame(columns=["date", "country", "value"])
