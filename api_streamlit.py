@@ -115,11 +115,17 @@ def fetch_wb(indicator_code: str, countries: list) -> pd.Series:
     """Fetch data from WB using wbdata library for specified countries."""
     try:
         data_series = wbdata.get_series(indicator_code, country=countries)
-        data_series = data_series.reset_index()
-        return data_series
+        if data_series is None or data_series.empty:
+            return pd.DataFrame(columns=["date", "country", "value"])
+        
+        df = data_series.reset_index()
+        # World Bank returns 'date' as year, ensure proper naming
+        if "date" not in df.columns and "year" in df.columns:
+            df.rename(columns={"year": "date"}, inplace=True)
+        return df[["date", "country", indicator_code]].rename(columns={indicator_code: "value"})
     except Exception as e:
         st.error(f"Error fetching data for {indicator_code}: {e}")
-        return pd.Series()
+        return pd.DataFrame(columns=["date", "country", "value"])
 
 # Placeholder for WHO API
 def fetch_who(indicator_code: str, **kwargs):
@@ -228,6 +234,10 @@ else:
                                     
 
             if st.session_state.mode == 'filters':
+                if "date" not in df.columns:
+                    st.error(f"No 'date' column found in dataset for {name}.")
+                    continue
+                
                 st.markdown("### Explore by Filters")
                 api_choice = st.selectbox('Choose Data Source/API', list(METADATA_FILES.keys()))
                 md = load_metadata(api_choice)
