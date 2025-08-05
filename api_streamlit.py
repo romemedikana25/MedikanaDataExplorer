@@ -714,11 +714,26 @@ else:
 
                 # Show summary of clusters
                 st.markdown("### Cluster Summary")
-                cluster_summary = (
+                # Get numeric columns for averaging
+                numeric_cols = st.session_state.numerical_data.select_dtypes(include='number').columns
+                
+                # Mean values per cluster
+                mean_summary = (
                     st.session_state.numerical_data
-                    .groupby('Cluster')[st.session_state.numerical_data.select_dtypes(include='number').columns]
+                    .groupby('Cluster')[numeric_cols]
                     .mean()
                 )
+                
+                # Count of rows per cluster
+                count_summary = (
+                    st.session_state.numerical_data
+                    .groupby('Cluster')
+                    .size()
+                    .rename("Count")
+                )
+                
+                # Combine them into one DataFrame
+                cluster_summary = mean_summary.join(count_summary)
                 st.dataframe(cluster_summary, use_container_width=True)
 
                 # Show download button for clustered data
