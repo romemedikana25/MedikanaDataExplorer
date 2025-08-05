@@ -13,4 +13,6 @@ langchain-openai
 pymupdf
 markdown
 fpdf
-
+scikit-learn
+scipy
+numpy
