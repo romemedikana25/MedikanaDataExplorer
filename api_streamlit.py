@@ -110,7 +110,6 @@ def load_metadata(source_key: str) -> pd.DataFrame:
     return load_google_sheet(GOOGLE_SHEET_ID, sheet_name)
 
 # Helper to query the World Bank API using wbdata
-@st.cache_data
 def fetch_wb(indicator_code: str, countries: list) -> pd.Series:
     """Fetch data from WB using wbdata library for specified countries."""
     try:
