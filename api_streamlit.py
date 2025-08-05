@@ -138,19 +138,22 @@ FETCHERS = {
 
 # PDF generator from AI marksdown summary helper
 def generate_pdf_from_markdown(md_text):
-            html_text = markdown_to_html(md_text) # convert md to html
-            doc = fitz.open()
-            page = doc.new_page()
-            
-            # Define a rectangle for text placement
-            rect = fitz.Rect(50, 50, 550, 800)
-            page.insert_htmlbox(rect, html_text)
-        
-            # Save to bytes
-            pdf_bytes = io.BytesIO()
-            doc.save(pdf_bytes)
-            pdf_bytes.seek(0)
-            return pdf_bytes.getvalue()
+    html_text = markdown_to_html(md_text) # convert md to html
+    doc = fitz.open()
+    page = doc.new_page()
+    
+    # Define a rectangle for text placement
+    rect = fitz.Rect(50, 50, 550, 800)
+    page.insert_htmlbox(rect, html_text)
+
+    # Save to bytes
+    pdf_bytes = io.BytesIO()
+    doc.save(pdf_bytes)
+    pdf_bytes.seek(0)
+    return pdf_bytes.getvalue()
+    
+def markdown_to_html(md_text):
+    return markdown.markdown(md_text)
 
 ################################################   STREAMLIT APP   ###################################################
 if not st.session_state.tool:
@@ -405,9 +408,6 @@ else:
 
         # Add your text summarization logic here
         MODEL = 'gpt-4o-mini'
-        
-        def markdown_to_html(md_text):
-            return markdown.markdown(md_text)
         
         def move_file_to_downloads(pdf_file_path):
             downloads_path = os.path.join(os.path.expanduser('~'), 'Downloads')
